@@ -21,8 +21,10 @@ Examples
 Ping port 80 (http) on www.yahoo.com
 ------------------------------------
 Here we ping www.yahoo.com via http (port 80).
-It is easy to see that that address has multiple hosts responding and their
-latancy.
+It is easy to see that that address has multiple hosts responding and the
+latency of each request.
+
+
     $ portping www.yahoo.com
     PORTPING www.yahoo.com:80 (98.139.180.149:80).
     from www.yahoo.com:80 (98.139.183.24:80): time=2.46 ms
@@ -34,6 +36,7 @@ latancy.
 
 Same thing using ssl
 --------------------
+
     $ portping www.yahoo.com:443
     PORTPING www.yahoo.com:443 (98.139.183.24:443).
     from www.yahoo.com:443 (98.139.180.149:443): time=2.89 ms
@@ -56,6 +59,7 @@ In this example we specify a url of http://cnn.com/
 In the results we can see a few things:
    * That there are two hosts responding to this request
    * That the two hosts are returning different amounts of data in their responses
+
 
     $ portping http://cnn.com/
     PORTPING cnn.com:80 (157.166.255.18:80).
