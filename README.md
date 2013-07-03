@@ -56,9 +56,8 @@ rotation or behind a reverse proxy or vip.
 
 In this example we specify a url of http://cnn.com/
 
-In the results we can see a few things:
-   * That there are two hosts responding to this request
-   * That the two hosts are returning different amounts of data in their responses
+This shows that there are two hosts responding to this request and that they
+are returning different amounts of data in their responses.
 
 
     $ portping http://cnn.com/
