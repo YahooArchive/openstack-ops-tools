@@ -10,11 +10,25 @@ This script does the following:
    * If there is an IP address assigned tests network using ping
    * Aggregates all the data together by hypervisor/instance
 """
+__license__ = """
+ Copyright (c) 2013 Yahoo! Inc. All rights reserved.
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
 
+ http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+"""
 import os
 import getpass
 import collections
 import optparse
+import json
 import sshmap
 
 
@@ -110,16 +124,18 @@ def get_nova_instance_info(vm_info=None):
 
 if __name__ == '__main__':
     parser = optparse.OptionParser(usage='get_instance_info hostlists')
-    #noinspection PyArgumentList
-    #parser.add_option(
-    #    "-d", dest="timings", default=False, action="store_true",
-    #    help="Show timings for the entire connection")
+    parser.add_option(
+        "--json", dest="json", default=False, action="store_true",
+        help="Display output in json format")
     (options, command_args) = parser.parse_args()
     host_range = ' '.join(command_args)
 
     vm_info = get_hypervisor_instance_info(host_range)
     vm_info = get_nova_instance_info(vm_info)
 
-    for hypervisor, value in vm_info.items():
-        for instance, value2 in value.items():
-            print('%s\t%s\t%s' % (hypervisor, instance, value2))
+    if options.json:
+        json.dumps(vm_info)
+    else:
+        for hypervisor, value in vm_info.items():
+            for instance, value2 in value.items():
+                print('%s\t%s\t%s' % (hypervisor, instance, value2))
