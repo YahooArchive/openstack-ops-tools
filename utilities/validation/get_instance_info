@@ -1,0 +1,85 @@
+#!/home/y/bin64/python2.7
+"""
+Get info for all instances in an openstack cluster from both openstack/nova
+directly and from libvirt on the hypervisor nodes.
+
+This script does the following:
+   * Gets a list of instances from libvirt on all the hypervisors
+   * Gets a list of all instances from nova on the current node
+   * Does a "nova show" to get the instance state, hypervisor and ip address
+   * If there is an IP address assigned tests reachability using ping
+   * Aggregates all the data together by hypervisor/instance
+"""
+
+import os
+import getpass
+import collections
+import sshmap
+
+
+def ping(ipaddress):
+    rc = os.system('ping -c1 %s > /dev/null 2>&1' % ipaddress) >> 8
+    if rc:
+        return 'Down'
+    return 'Up'
+
+
+vm_info = collections.defaultdict(lambda: None)
+
+# Get the info from libvirt on the hypervisors first
+for result in sshmap.run(
+    host_range='openstack_hv:%s' % os.environ['OPENSTACK_CLUSTER'],
+    command='virsh list --all|egrep -v ^\$\|Id\|\"^-\"', sudo=True,
+    password=getpass.getpass('Sudo Password:')):
+    vm_info[result.host] = {}
+    for line in result.out:
+        items = line.strip().split()
+        vm_info[result.host][items[1]] = {'libvirt_id': items[0],
+                                          'libvirt_state': items[2]}
+
+# Get the info from nova
+ID = 1
+NAME = 2
+STATE = 3
+IP = 4
+for line in os.popen('nova list --all-tenants').readlines():
+    sline = line.strip().split('|')
+    if len(sline) > 3:
+        id = sline[ID].strip()
+        name = sline[NAME].strip()
+        state = sline[STATE].strip()
+        ipaddress = sline[IP].strip().split('=')[-1]
+        if len(ipaddress.split('.')) != 4:
+            ipaddress = None
+        hypervisor = "Unknown"
+        instanceid = "Unknown"
+        if id != 'ID':
+            for line2 in os.popen('nova show %s' % id).readlines():
+                sline2 = line2.strip().split('|')
+                if len(sline2) > 2:
+                    #print sline2
+                    property = sline2[1].strip()
+                    value = sline2[2].strip()
+                    if property in ['OS-EXT-SRV-ATTR:host',
+                                    'OS-EXT-SRV-ATTR:hypervisor_hostname']:
+                        hypervisor = value
+                    if property in ['OS-EXT-SRV-ATTR:instance_name']:
+                        instanceid = value
+                    #print property,'=',value
+            #print('%s\t%s\t%s\t%s\t%s' % (name, id, instanceid, state,
+            # hypervisor))
+            try:
+                vm_info[hypervisor][instanceid]['name'] = name
+                vm_info[hypervisor][instanceid]['nova_state'] = state
+                vm_info[hypervisor][instanceid]['ipaddress'] = ipaddress
+            except KeyError:
+                vm_info[hypervisor][instanceid] = {'name': name,
+                                                   'nova_state': state,
+                                                   'ip_address': ipaddress}
+            if ipaddress:
+                vm_info[hypervisor][instanceid]['ping'] = ping(ipaddress)
+
+
+for hypervisor, value in vm_info.items():
+    for instance, value2 in value.items():
+        print hypervisor, instance, value2
