@@ -134,7 +134,7 @@ if __name__ == '__main__':
     vm_info = get_nova_instance_info(vm_info)
 
     if options.json:
-        json.dumps(vm_info)
+        print(json.dumps(vm_info))
     else:
         for hypervisor, value in vm_info.items():
             for instance, value2 in value.items():
