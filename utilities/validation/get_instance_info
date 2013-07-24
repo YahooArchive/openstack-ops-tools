@@ -111,6 +111,8 @@ def get_nova_instance_info(vm_info=None):
                 #print('%s\t%s\t%s\t%s\t%s' % (name, id, instanceid, state,
                 # hypervisor))
                 try:
+                    if hypervisor not in vm_info.keys():
+                        vm_info[hypervisor]={}
                     if instanceid not in vm_info[hypervisor].keys():
                         vm_info[hypervisor][instanceid]={}
                     vm_info[hypervisor][instanceid]['name'] = name
