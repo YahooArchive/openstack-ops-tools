@@ -93,3 +93,11 @@ It is clear that the host with address 157.166.226.25 is taking significantly lo
     4 packets transmitted, 4 received, 0% packet loss, time 5009.0ms
     rtt min/avg/max/dev = 156.69/212.76/327.43/138.24 ms
     $
+
+get_instance_info
+=================
+Generate an instance state based on information from libvirt on the hypervisors
+and information from the openstack nova service.
+
+This is useful to generate state information that can be done before and after
+operational actions to see potential issues.
