@@ -7,79 +7,119 @@ This script does the following:
    * Gets a list of instances from libvirt on all the hypervisors
    * Gets a list of all instances from nova on the current node
    * Does a "nova show" to get the instance state, hypervisor and ip address
-   * If there is an IP address assigned tests reachability using ping
+   * If there is an IP address assigned tests network using ping
    * Aggregates all the data together by hypervisor/instance
 """
 
 import os
 import getpass
 import collections
+import optparse
 import sshmap
 
 
 def ping(ipaddress):
+    """
+    Ping a host or ip address once and return up or down
+    :param ipaddress:
+    :return:
+    """
     rc = os.system('ping -c1 %s > /dev/null 2>&1' % ipaddress) >> 8
     if rc:
         return 'Down'
     return 'Up'
 
 
-vm_info = collections.defaultdict(lambda: None)
+def get_hypervisor_instance_info(host_range=None):
+    """
+    Connect to a bunch of hypervisors and get instance information from
+    libvirt.
+    :param host_range: hostlists range of hypervisors
+    """
+    vm_info = collections.defaultdict(lambda: None)
 
-# Get the info from libvirt on the hypervisors first
-for result in sshmap.run(
-    host_range='openstack_hv:%s' % os.environ['OPENSTACK_CLUSTER'],
-    command='virsh list --all|egrep -v ^\$\|Id\|\"^-\"', sudo=True,
-    password=getpass.getpass('Sudo Password:')):
-    vm_info[result.host] = {}
-    for line in result.out:
-        items = line.strip().split()
-        vm_info[result.host][items[1]] = {'libvirt_id': items[0],
-                                          'libvirt_state': items[2]}
+    if not host_range:
+        host_range = 'openstack_hv:%s' % os.environ['OPENSTACK_CLUSTER']
+    # Get the info from libvirt on the hypervisors first
+    for result in sshmap.run(
+        host_range=host_range,
+        command='virsh list --all|egrep -v ^\$\|Id\|\"^-\"', sudo=True,
+        password=getpass.getpass('Sudo Password:')):
+        vm_info[result.host] = {}
+        for line in result.out:
+            items = line.strip().split()
+            vm_info[result.host][items[1]] = {'libvirt_id': items[0],
+                                              'libvirt_state': items[2]}
+    return vm_info
+
 
 # Get the info from nova
-ID = 1
-NAME = 2
-STATE = 3
-IP = 4
-for line in os.popen('nova list --all-tenants').readlines():
-    sline = line.strip().split('|')
-    if len(sline) > 3:
-        id = sline[ID].strip()
-        name = sline[NAME].strip()
-        state = sline[STATE].strip()
-        ipaddress = sline[IP].strip().split('=')[-1]
-        if len(ipaddress.split('.')) != 4:
-            ipaddress = None
-        hypervisor = "Unknown"
-        instanceid = "Unknown"
-        if id != 'ID':
-            for line2 in os.popen('nova show %s' % id).readlines():
-                sline2 = line2.strip().split('|')
-                if len(sline2) > 2:
-                    #print sline2
-                    property = sline2[1].strip()
-                    value = sline2[2].strip()
-                    if property in ['OS-EXT-SRV-ATTR:host',
-                                    'OS-EXT-SRV-ATTR:hypervisor_hostname']:
-                        hypervisor = value
-                    if property in ['OS-EXT-SRV-ATTR:instance_name']:
-                        instanceid = value
-                    #print property,'=',value
-            #print('%s\t%s\t%s\t%s\t%s' % (name, id, instanceid, state,
-            # hypervisor))
-            try:
-                vm_info[hypervisor][instanceid]['name'] = name
-                vm_info[hypervisor][instanceid]['nova_state'] = state
-                vm_info[hypervisor][instanceid]['ipaddress'] = ipaddress
-            except KeyError:
-                vm_info[hypervisor][instanceid] = {'name': name,
-                                                   'nova_state': state,
-                                                   'ip_address': ipaddress}
-            if ipaddress:
-                vm_info[hypervisor][instanceid]['ping'] = ping(ipaddress)
+def get_nova_instance_info(vm_info=None):
+    """
+    Get instance information from nova and update vm_info if it is passed
+    :param vm_info:
+    """
+    # Todo:
+    #     Move code for adding a single host to another function that
+    #     can be called using multiprocessing.pool.imap
+    #     in order to get the host information and ping checks in parallel
+    if not vm_info:
+        vm_info = collections.defaultdict(lambda: None)
+    ID = 1
+    NAME = 2
+    STATE = 3
+    IP = 4
+    for line in os.popen('nova list --all-tenants').readlines():
+        sline = line.strip().split('|')
+        if len(sline) > 3:
+            openstack_id = sline[ID].strip()
+            name = sline[NAME].strip()
+            state = sline[STATE].strip()
+            ipaddress = sline[IP].strip().split('=')[-1]
+            if len(ipaddress.split('.')) != 4:
+                ipaddress = None
+            hypervisor = "Unknown"
+            instanceid = "Unknown"
+            if openstack_id != 'ID':
+                for line2 in os.popen('nova show %s' % openstack_id).readlines():
+                    sline2 = line2.strip().split('|')
+                    if len(sline2) > 2:
+                        property_name = sline2[1].strip()
+                        value = sline2[2].strip()
+                        if property_name in [
+                            'OS-EXT-SRV-ATTR:host',
+                            'OS-EXT-SRV-ATTR:hypervisor_hostname']:
+                            hypervisor = value
+                        if property_name in ['OS-EXT-SRV-ATTR:instance_name']:
+                            instanceid = value
+                        #print property,'=',value
+                #print('%s\t%s\t%s\t%s\t%s' % (name, id, instanceid, state,
+                # hypervisor))
+                try:
+                    vm_info[hypervisor][instanceid]['name'] = name
+                    vm_info[hypervisor][instanceid]['nova_state'] = state
+                    vm_info[hypervisor][instanceid]['ipaddress'] = ipaddress
+                except KeyError:
+                    vm_info[hypervisor][instanceid] = {'name': name,
+                                                       'nova_state': state,
+                                                       'ip_address': ipaddress}
+                if ipaddress:
+                    vm_info[hypervisor][instanceid]['ping'] = ping(ipaddress)
+    return vm_info
 
 
-for hypervisor, value in vm_info.items():
-    for instance, value2 in value.items():
-        print hypervisor, instance, value2
+if __name__ == '__main__':
+    parser = optparse.OptionParser(usage='get_instance_info hostlists')
+    #noinspection PyArgumentList
+    #parser.add_option(
+    #    "-d", dest="timings", default=False, action="store_true",
+    #    help="Show timings for the entire connection")
+    (options, command_args) = parser.parse_args()
+    host_range = ' '.join(command_args)
+
+    vm_info = get_hypervisor_instance_info(host_range)
+    vm_info = get_nova_instance_info(vm_info)
+
+    for hypervisor, value in vm_info.items():
+        for instance, value2 in value.items():
+            print('%s\t%s\t%s' % (hypervisor, instance, value2))
