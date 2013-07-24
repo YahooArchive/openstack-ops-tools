@@ -30,6 +30,7 @@ import collections
 import optparse
 import json
 import sshmap
+import hostlists
 
 
 def ping(ipaddress):
@@ -122,17 +123,35 @@ def get_nova_instance_info(vm_info=None):
     return vm_info
 
 
+def remove_extra_hypervisors(host_range, vm_info):
+    """
+    Remove any extra hypervisors that were not in the specified range from
+    vm_info
+    """
+    hosts = hostlists.expand(host_range)
+    new_vm_info = collections.defaultdict(lambda:None)
+    for hypervisor, value in vm_info:
+        if hypervisor in hosts:
+            new_vm_info[hypervisor] = value
+    return new_vm_info
+
+
 if __name__ == '__main__':
     parser = optparse.OptionParser(usage='get_instance_info hostlists')
     parser.add_option(
         "--json", dest="json", default=False, action="store_true",
         help="Display output in json format")
+    parser.add_option(
+        "--only_in_range", dest="only_in_range",
+        default=False, action="store_true",
+        help="Only give information for the hypervisors specified")
     (options, command_args) = parser.parse_args()
     host_range = ' '.join(command_args)
 
     vm_info = get_hypervisor_instance_info(host_range)
     vm_info = get_nova_instance_info(vm_info)
-
+    if options.only_in_range:
+        vm_info = remove_extra_hypervisors(host_range, vm_info)
     if options.json:
         print(json.dumps(vm_info))
     else:
