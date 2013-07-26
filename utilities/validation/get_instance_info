@@ -87,7 +87,7 @@ def get_single_instance_hypervisor(openstack_id):
             if property_name in ['OS-EXT-SRV-ATTR:instance_name']:
                 instanceid = value
             #print property,'=',value
-    return instanceid, hypervisor
+    return openstack_id, instanceid, hypervisor
 
 
 # Get the info from nova
@@ -121,7 +121,7 @@ def get_all_nova_instance_info(vm_info=None):
             instanceid = "Unknown"
             if openstack_id != 'ID':
                 nova_instances.append(openstack_id)
-    for openstack_id, hypervisor in process_pool.imap(
+    for openstack_id, instanceid, hypervisor in process_pool.imap(
         get_single_instance_hypervisor, nova_instances):
         #print('%s\t%s\t%s\t%s\t%s' % (name, id, instanceid, state,
         # hypervisor))
