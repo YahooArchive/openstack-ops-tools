@@ -151,14 +151,14 @@ def get_all_nova_instance_info(vm_info=None, processes = 10):
         processes = 10
     process_pool = multiprocessing.Pool(processes=processes)
 
-    print vm_info.keys()
-    sys.exit(0)
     # Get the instances running on the hypervisors from nova
     for result in process_pool.imap(get_hypervisor_instances, vm_info.keys()):
         for openstack_id, name, state, ipaddress, hypervisor, instanceid in \
                 result:
             nova_instances += result
 
+    print nova_instances
+    sys.exit(0)
     # Get more attributes for each instance from nova and add to vm_info
     for openstack_id, name, state, ipaddress, instanceid, hypervisor in \
             process_pool.imap(
