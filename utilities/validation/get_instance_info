@@ -108,10 +108,10 @@ def get_hypervisor_instances(hypervisor):
                 ipaddress = None
             hypervisor = "Unknown"
             instanceid = "Unknown"
-        if openstack_id != 'ID':
-            result.append(
-                (openstack_id, name, state, ipaddress, hypervisor, instanceid)
-            )
+            if openstack_id != 'ID':
+                result.append(
+                    (openstack_id, name, state, ipaddress, hypervisor, instanceid)
+                )
     return result
 
 
