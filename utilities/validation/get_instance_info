@@ -237,6 +237,10 @@ if __name__ == '__main__':
                                     "%(message)s",
         level=level)
 
+    # Prevent ssh module debug messages flooding our screen
+    ssh_log = logging.getLogger('ssh')
+    ssh_log.setLevel(logging.WARNING)
+
     # Get the hostlists range of hypervisors
     host_range = ' '.join(command_args)
 
