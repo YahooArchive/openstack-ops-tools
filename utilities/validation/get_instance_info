@@ -29,6 +29,7 @@ import getpass
 import collections
 import optparse
 import json
+import multiprocessing
 import sshmap
 import hostlists
 
@@ -68,8 +69,29 @@ def get_hypervisor_instance_info(host_range=None):
     return vm_info
 
 
+def get_single_instance_hypervisor(openstack_id):
+    """
+    Get the hypervisor and the nova instanceid of a single instance
+    :openstack_id:
+    """
+    hypervisor = 'Unknown'
+    for line2 in os.popen('nova show %s' % openstack_id).readlines():
+        sline2 = line2.strip().split('|')
+        if len(sline2) > 2:
+            property_name = sline2[1].strip()
+            value = sline2[2].strip()
+            if property_name in [
+                'OS-EXT-SRV-ATTR:host',
+                'OS-EXT-SRV-ATTR:hypervisor_hostname']:
+                hypervisor = value
+            if property_name in ['OS-EXT-SRV-ATTR:instance_name']:
+                instanceid = value
+            #print property,'=',value
+    return instanceid, hypervisor
+
+
 # Get the info from nova
-def get_nova_instance_info(vm_info=None):
+def get_all_nova_instance_info(vm_info=None):
     """
     Get instance information from nova and update vm_info if it is passed
     :param vm_info:
@@ -84,6 +106,8 @@ def get_nova_instance_info(vm_info=None):
     NAME = 2
     STATE = 3
     IP = 4
+    nova_instances = []
+    process_pool = multiprocessing.Pool(processes=5)
     for line in os.popen('nova list --all-tenants').readlines():
         sline = line.strip().split('|')
         if len(sline) > 3:
@@ -96,34 +120,25 @@ def get_nova_instance_info(vm_info=None):
             hypervisor = "Unknown"
             instanceid = "Unknown"
             if openstack_id != 'ID':
-                for line2 in os.popen('nova show %s' % openstack_id).readlines():
-                    sline2 = line2.strip().split('|')
-                    if len(sline2) > 2:
-                        property_name = sline2[1].strip()
-                        value = sline2[2].strip()
-                        if property_name in [
-                            'OS-EXT-SRV-ATTR:host',
-                            'OS-EXT-SRV-ATTR:hypervisor_hostname']:
-                            hypervisor = value
-                        if property_name in ['OS-EXT-SRV-ATTR:instance_name']:
-                            instanceid = value
-                        #print property,'=',value
-                #print('%s\t%s\t%s\t%s\t%s' % (name, id, instanceid, state,
-                # hypervisor))
-                try:
-                    if hypervisor not in vm_info.keys():
-                        vm_info[hypervisor]={}
-                    if instanceid not in vm_info[hypervisor].keys():
-                        vm_info[hypervisor][instanceid]={}
-                    vm_info[hypervisor][instanceid]['name'] = name
-                    vm_info[hypervisor][instanceid]['nova_state'] = state
-                    vm_info[hypervisor][instanceid]['ipaddress'] = ipaddress
-                except (KeyError, TypeError):
-                    vm_info[hypervisor][instanceid] = {'name': name,
-                                                       'nova_state': state,
-                                                       'ip_address': ipaddress}
-                if ipaddress:
-                    vm_info[hypervisor][instanceid]['ping'] = ping(ipaddress)
+                nova_instances.append(openstack_id)
+    for openstack_id, vm_info in process_pool.imap(
+        get_single_instance_hypervisor, nova_instances):
+        #print('%s\t%s\t%s\t%s\t%s' % (name, id, instanceid, state,
+        # hypervisor))
+        try:
+            if hypervisor not in vm_info.keys():
+                vm_info[hypervisor]={}
+            if instanceid not in vm_info[hypervisor].keys():
+                vm_info[hypervisor][instanceid]={}
+            vm_info[hypervisor][instanceid]['name'] = name
+            vm_info[hypervisor][instanceid]['nova_state'] = state
+            vm_info[hypervisor][instanceid]['ipaddress'] = ipaddress
+        except (KeyError, TypeError):
+            vm_info[hypervisor][instanceid] = {'name': name,
+                                               'nova_state': state,
+                                               'ip_address': ipaddress}
+        if ipaddress:
+            vm_info[hypervisor][instanceid]['ping'] = ping(ipaddress)
     return vm_info
 
 
@@ -153,7 +168,7 @@ if __name__ == '__main__':
     host_range = ' '.join(command_args)
 
     vm_info = get_hypervisor_instance_info(host_range)
-    vm_info = get_nova_instance_info(vm_info)
+    vm_info = get_all_nova_instance_info(vm_info)
     if options.only_in_range:
         vm_info = remove_extra_hypervisors(host_range, vm_info)
     if options.json:
