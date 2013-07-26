@@ -74,9 +74,7 @@ def get_single_instance_hypervisor(values):
     Get the hypervisor and the nova instanceid of a single instance
     :values:
     """
-    openstack_id, name, state, ipaddress = values
-    hypervisor = 'Unknown'
-    instanceid = 'Unknown'
+    openstack_id, name, state, ipaddress, hypervisor, instanceid = values
     for line2 in os.popen('nova show %s' % openstack_id).readlines():
         sline2 = line2.strip().split('|')
         if len(sline2) > 2:
@@ -92,6 +90,31 @@ def get_single_instance_hypervisor(values):
     return openstack_id, name, state, ipaddress, instanceid, hypervisor
 
 
+def get_hypervisor_instances(hypervisor):
+    ID = 1
+    NAME = 2
+    STATE = 3
+    IP = 4
+    result = []
+    for line in os.popen(
+            'nova list --all-tenants --host %s' % hypervisor).readlines():
+        sline = line.strip().split('|')
+        if len(sline) > 3:
+            openstack_id = sline[ID].strip()
+            name = sline[NAME].strip()
+            state = sline[STATE].strip()
+            ipaddress = sline[IP].strip().split('=')[-1]
+            if len(ipaddress.split('.')) != 4:
+                ipaddress = None
+            hypervisor = "Unknown"
+            instanceid = "Unknown"
+        if openstack_id != 'ID':
+            result.append(
+                (openstack_id, name, state, ipaddress, hypervisor, instanceid)
+            )
+    return result
+
+
 # Get the info from nova
 def get_all_nova_instance_info(vm_info=None, processes = 10):
     """
@@ -105,29 +128,20 @@ def get_all_nova_instance_info(vm_info=None, processes = 10):
     #     in order to get the host information and ping checks in parallel
     if not vm_info:
         vm_info = collections.defaultdict(lambda:{})
-    ID = 1
-    NAME = 2
-    STATE = 3
-    IP = 4
     nova_instances = []
     if isinstance(processes, int) and processes > 0 and processes < 30:
         pass
     else:
         processes = 10
     process_pool = multiprocessing.Pool(processes=processes)
-    for line in os.popen('nova list --all-tenants').readlines():
-        sline = line.strip().split('|')
-        if len(sline) > 3:
-            openstack_id = sline[ID].strip()
-            name = sline[NAME].strip()
-            state = sline[STATE].strip()
-            ipaddress = sline[IP].strip().split('=')[-1]
-            if len(ipaddress.split('.')) != 4:
-                ipaddress = None
-            hypervisor = "Unknown"
-            instanceid = "Unknown"
-            if openstack_id != 'ID':
-                nova_instances.append((openstack_id, name, state, ipaddress))
+
+    # Get the instances running on the hypervisors from nova
+    for result in process_pool.imap(get_hypervisor_instances, vm_info.keys()):
+        for openstack_id, name, state, ipaddress, hypervisor, instanceid in \
+                result:
+            nova_instances += result
+
+    # Get more attributes for each instance from nova and add to vm_info
     for openstack_id, name, state, ipaddress, instanceid, hypervisor in \
             process_pool.imap(
         get_single_instance_hypervisor, nova_instances):
