@@ -29,6 +29,8 @@ import getpass
 import collections
 import optparse
 import json
+import logging
+import socket
 import multiprocessing
 import sshmap
 import hostlists
@@ -54,6 +56,8 @@ def get_hypervisor_instance_info(host_range=None):
     """
     vm_info = collections.defaultdict(lambda: None)
 
+    logging.info('Getting the instance information from libvirt on the '
+                 'hypervisors')
     if not host_range:
         host_range = 'openstack_hv:%s' % os.environ['OPENSTACK_CLUSTER']
     # Get the info from libvirt on the hypervisors first
@@ -61,6 +65,8 @@ def get_hypervisor_instance_info(host_range=None):
         host_range=host_range,
         command='virsh list --all|egrep -v ^\$\|Id\|\"^-\"', sudo=True,
         password=getpass.getpass('Sudo Password:')):
+        logging.debug(
+            'Processing libvirt info from hypervisor %s', result.host)
         vm_info[result.host] = {}
         for line in result.out:
             items = line.strip().split()
@@ -75,6 +81,8 @@ def get_single_instance_hypervisor(values):
     :values:
     """
     openstack_id, name, state, ipaddress, hypervisor, instanceid = values
+    logging.debug(
+        'Getting instance attributes for openstack instance %s', openstack_id)
     for line2 in os.popen('nova show %s' % openstack_id).readlines():
         sline2 = line2.strip().split('|')
         if len(sline2) > 2:
@@ -91,6 +99,12 @@ def get_single_instance_hypervisor(values):
 
 
 def get_hypervisor_instances(hypervisor):
+    """
+    Get instances on a hypervisor from nova
+    :hypervisor:
+    """
+    logging.debug(
+        'Getting nova instance information for instances running on %s', hypervisor)
     ID = 1
     NAME = 2
     STATE = 3
@@ -122,10 +136,7 @@ def get_all_nova_instance_info(vm_info=None, processes = 10):
     :param vm_info:
     :processes:
     """
-    # Todo:
-    #     Move code for adding a single host to another function that
-    #     can be called using multiprocessing.pool.imap
-    #     in order to get the host information and ping checks in parallel
+    logging.info('Getting all instance info from nova')
     if not vm_info:
         vm_info = collections.defaultdict(lambda:{})
     nova_instances = []
@@ -178,6 +189,15 @@ def remove_extra_hypervisors(host_range, vm_info):
 
 
 if __name__ == '__main__':
+    # Set the default log level, even if there was a logging message prior
+    # to this point
+    for handler in logging.root.handlers[:]:
+        logging.root.removeHandler(handler)
+    logging.basicConfig(
+        format=socket.gethostname()+" %(asctime)s: [%(levelname)s] %(message)s",
+        level=logging.INFO)
+
+    # Parse command line arguements
     parser = optparse.OptionParser(usage='get_instance_info hostlists')
     parser.add_option(
         "--json", dest="json", default=False, action="store_true",
@@ -189,15 +209,43 @@ if __name__ == '__main__':
         "--only_in_range", dest="only_in_range",
         default=False, action="store_true",
         help="Only give information for the hypervisors specified")
+    parser.add_option(
+        "--log_level", dest="log_level", default='info',
+        choices=['debug', 'info', 'warn', 'error'],
+        help='Set the default log level [debug, info, warn, error] default: '
+             'info'
+    )
     (options, command_args) = parser.parse_args()
+
+    # Set the logging level based on the command line input
+    level = logging.INFO
+    if options.log_level.lower() == 'warn':
+        level = logging.WARN
+    elif options.log_level.lower() == 'info':
+        level = logging.INFO
+    elif options.log_level.lower() == 'debug':
+        level = logging.DEBUG
+    for handler in logging.root.handlers[:]:
+        logging.root.removeHandler(handler)
+    logging.basicConfig(
+        format=socket.gethostname()+" %(asctime)s: [%(levelname)s] "
+                                    "%(message)s",
+        level=level)
+
+    # Get the hostlists range of hypervisors
     host_range = ' '.join(command_args)
+
+    # Set the hostlist range to use the openstack plugin to get host list
     if not host_range.strip() and 'OPENSTACK_CLUSTER' in os.environ.keys():
         host_range = 'openstack:%s' % os.environ['OPENSTACK_CLUSTER']
 
+    # Go get the information
     vm_info = get_hypervisor_instance_info(host_range)
     vm_info = get_all_nova_instance_info(vm_info, processes = options.jobs)
     if options.only_in_range:
         vm_info = remove_extra_hypervisors(host_range, vm_info)
+
+    # Output the results
     if options.json:
         print(json.dumps(vm_info))
     else:
