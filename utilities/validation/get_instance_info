@@ -25,6 +25,7 @@ __license__ = """
  limitations under the License. See accompanying LICENSE file.
 """
 import os
+import sys
 import getpass
 import collections
 import optparse
@@ -104,7 +105,8 @@ def get_hypervisor_instances(hypervisor):
     :hypervisor:
     """
     logging.debug(
-        'Getting nova instance information for instances running on %s', hypervisor)
+        'Getting nova instance information for instances running on %s',
+        hypervisor)
     ID = 1
     NAME = 2
     STATE = 3
@@ -124,7 +126,10 @@ def get_hypervisor_instances(hypervisor):
             instanceid = "Unknown"
             if openstack_id != 'ID':
                 result.append(
-                    (openstack_id, name, state, ipaddress, hypervisor, instanceid)
+                    (
+                        openstack_id, name, state, ipaddress, hypervisor,
+                        instanceid
+                    )
                 )
     return result
 
@@ -146,6 +151,8 @@ def get_all_nova_instance_info(vm_info=None, processes = 10):
         processes = 10
     process_pool = multiprocessing.Pool(processes=processes)
 
+    print vm_info.keys()
+    sys.exit(0)
     # Get the instances running on the hypervisors from nova
     for result in process_pool.imap(get_hypervisor_instances, vm_info.keys()):
         for openstack_id, name, state, ipaddress, hypervisor, instanceid in \
