@@ -252,6 +252,7 @@ if __name__ == '__main__':
     vm_info = get_hypervisor_instance_info(host_range)
     vm_info = get_all_nova_instance_info(vm_info, processes = options.jobs)
     if options.only_in_range:
+        logging.debug('Removing any extra hypervisors from output')
         vm_info = remove_extra_hypervisors(host_range, vm_info)
 
     # Output the results
