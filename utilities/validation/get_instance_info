@@ -253,7 +253,7 @@ if __name__ == '__main__':
 
     # Set the hostlist range to use the openstack plugin to get host list
     if not host_range.strip() and 'OPENSTACK_CLUSTER' in os.environ.keys():
-        host_range = 'openstack:%s' % os.environ['OPENSTACK_CLUSTER']
+        host_range = 'openstack_hv:%s' % os.environ['OPENSTACK_CLUSTER']
 
     # Go get the information
     vm_info = get_hypervisor_instance_info(host_range)
