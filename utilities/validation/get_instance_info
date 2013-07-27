@@ -82,6 +82,7 @@ def get_single_instance_hypervisor(values):
     :values:
     """
     openstack_id, name, state, ipaddress, hypervisor, instanceid = values
+    ping_result = 'Unknown'
     logging.debug(
         'Getting instance attributes for openstack instance %s', openstack_id)
     for line2 in os.popen('nova show %s' % openstack_id).readlines():
@@ -96,7 +97,9 @@ def get_single_instance_hypervisor(values):
             if property_name in ['OS-EXT-SRV-ATTR:instance_name']:
                 instanceid = value
             #print property,'=',value
-    return openstack_id, name, state, ipaddress, instanceid, hypervisor
+            if ipaddress:
+                ping_result = ping(ipaddress)
+    return openstack_id, name, state, ipaddress, instanceid, hypervisor, ping_result
 
 
 def get_hypervisor_instances(hypervisor):
@@ -158,14 +161,14 @@ def get_all_nova_instance_info(vm_info=None, processes = 10):
         nova_instances += result
 
     # Get more attributes for each instance from nova and add to vm_info
-    for openstack_id, name, state, ipaddress, instanceid, hypervisor in \
-            process_pool.imap(
+    for openstack_id, name, state, ipaddress, instanceid, hypervisor, \
+        ping_result in process_pool.imap(
         get_single_instance_hypervisor, nova_instances):
         #print('%s\t%s\t%s\t%s\t%s' % (name, id, instanceid, state,
         # hypervisor))
         try:
             if hypervisor not in vm_info.keys():
-                vm_info[hypervisor]={}
+                vm_info[hypervisor] = {}
             if instanceid not in vm_info[hypervisor].keys():
                 vm_info[hypervisor][instanceid]={}
             vm_info[hypervisor][instanceid]['name'] = name
@@ -173,12 +176,12 @@ def get_all_nova_instance_info(vm_info=None, processes = 10):
             vm_info[hypervisor][instanceid]['ipaddress'] = ipaddress
             if openstack_id:
                 vm_info[hypervisor][instanceid]['openstack_id'] = openstack_id
+            if ping_result:
+                vm_info[hypervisor][instanceid]['ping'] = ping_result
         except (KeyError, TypeError):
             vm_info[hypervisor][instanceid] = {'name': name,
                                                'nova_state': state,
                                                'ip_address': ipaddress}
-        if ipaddress:
-            vm_info[hypervisor][instanceid]['ping'] = ping(ipaddress)
     return vm_info
 
 
