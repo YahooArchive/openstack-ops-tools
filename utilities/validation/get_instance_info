@@ -217,7 +217,7 @@ if __name__ == '__main__':
         default=False, action="store_true",
         help="Only give information for the hypervisors specified")
     parser.add_option(
-        "--log_level", dest="log_level", default='info',
+        "--log_level", dest="log_level", default=None,
         choices=['debug', 'info', 'warn', 'error'],
         help='Set the default log level [debug, info, warn, error] default: '
              'info'
@@ -232,6 +232,11 @@ if __name__ == '__main__':
         level = logging.INFO
     elif options.log_level.lower() == 'debug':
         level = logging.DEBUG
+    if not options.log_level:
+        if options.json:
+            level = logging.ERROR
+        else:
+            level = logging.INFO
     for handler in logging.root.handlers[:]:
         logging.root.removeHandler(handler)
     logging.basicConfig(
@@ -259,7 +264,7 @@ if __name__ == '__main__':
 
     # Output the results
     if options.json:
-        print(json.dumps(vm_info))
+        print(json.dumps(vm_info, indent=4, sort_keys=True))
     else:
         for hypervisor, value in vm_info.items():
             for instance, value2 in value.items():
