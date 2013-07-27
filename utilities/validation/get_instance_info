@@ -1,4 +1,4 @@
-#!/home/y/bin64/python2.7
+#!/usr/bin/env python
 """
 Get info for all instances in an openstack cluster from both openstack/nova
 directly and from libvirt on the hypervisor nodes.
