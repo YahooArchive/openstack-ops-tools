@@ -218,7 +218,7 @@ if __name__ == '__main__':
         help="Only give information for the hypervisors specified")
     parser.add_option(
         "--log_level", dest="log_level", default='',
-        choices=['debug', 'info', 'warn', 'error'],
+        choices=['', 'debug', 'info', 'warn', 'error'],
         help='Set the default log level [debug, info, warn, error] default: '
              'info'
     )
