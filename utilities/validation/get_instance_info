@@ -171,6 +171,8 @@ def get_all_nova_instance_info(vm_info=None, processes = 10):
             vm_info[hypervisor][instanceid]['name'] = name
             vm_info[hypervisor][instanceid]['nova_state'] = state
             vm_info[hypervisor][instanceid]['ipaddress'] = ipaddress
+            if openstack_id:
+                vm_info[hypervisor][instanceid]['openstack_id'] = openstack_id
         except (KeyError, TypeError):
             vm_info[hypervisor][instanceid] = {'name': name,
                                                'nova_state': state,
