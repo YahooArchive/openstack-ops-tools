@@ -63,9 +63,9 @@ def get_hypervisor_instance_info(host_range=None):
         host_range = 'openstack_hv:%s' % os.environ['OPENSTACK_CLUSTER']
     # Get the info from libvirt on the hypervisors first
     for result in sshmap.run(
-        host_range=host_range,
-        command='virsh list --all|egrep -v ^\$\|Id\|\"^-\"', sudo=True,
-        password=getpass.getpass('Sudo Password:')):
+            host_range=host_range,
+            command='virsh list --all|egrep -v ^\$\|Id\|\"^-\"', sudo=True,
+            password=getpass.getpass('Sudo Password:')):
         logging.debug(
             'Processing libvirt info from hypervisor %s', result.host)
         vm_info[result.host] = {}
@@ -79,6 +79,7 @@ def get_hypervisor_instance_info(host_range=None):
 def get_single_instance_hypervisor(values):
     """
     Get the hypervisor and the nova instanceid of a single instance
+    :param values:
     :values:
     """
     openstack_id, name, state, ipaddress, hypervisor, instanceid = values
@@ -192,8 +193,21 @@ def remove_extra_hypervisors(host_range, vm_info):
     """
     hosts = hostlists.expand(host_range)
     new_vm_info = collections.defaultdict(lambda:{})
-    for hypervisor, value in vm_info:
+    for hypervisor, value in vm_info.items():
         if hypervisor in hosts:
+            new_vm_info[hypervisor] = value
+    return new_vm_info
+
+
+def remove_empty_entries(vm_info):
+    """
+    Remove any hosts that have no data in case we are passed a range including
+    non-hypervisor nodes.
+    :param vm_info:
+    """
+    new_vm_info = collections.defaultdict(lambda:{})
+    for hypervisor, value in vm_info.items():
+        if value:
             new_vm_info[hypervisor] = value
     return new_vm_info
 
@@ -204,7 +218,8 @@ if __name__ == '__main__':
     for handler in logging.root.handlers[:]:
         logging.root.removeHandler(handler)
     logging.basicConfig(
-        format=socket.gethostname()+" %(asctime)s: [%(levelname)s] %(message)s",
+        format=socket.gethostname()+" %(asctime)s: [%(levelname)s] "
+                                    "%(message)s",
         level=logging.INFO)
 
     # Parse command line arguements
@@ -261,6 +276,8 @@ if __name__ == '__main__':
     # Go get the information
     vm_info = get_hypervisor_instance_info(host_range)
     vm_info = get_all_nova_instance_info(vm_info, processes = options.jobs)
+    vm_info = remove_empty_entries(vm_info)
+
     if options.only_in_range:
         logging.debug('Removing any extra hypervisors from output')
         vm_info = remove_extra_hypervisors(host_range, vm_info)
