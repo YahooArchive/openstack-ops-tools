@@ -100,7 +100,8 @@ def get_single_instance_hypervisor(values):
             #print property,'=',value
             if ipaddress:
                 ping_result = ping(ipaddress)
-    return openstack_id, name, state, ipaddress, instanceid, hypervisor, ping_result
+    return openstack_id, name, state, ipaddress, instanceid, hypervisor, \
+           ping_result
 
 
 def get_hypervisor_instances(hypervisor):
@@ -140,7 +141,7 @@ def get_hypervisor_instances(hypervisor):
 
 
 # Get the info from nova
-def get_all_nova_instance_info(vm_info=None, processes = 10):
+def get_all_nova_instance_info(vm_info=None, processes=10):
     """
     Get instance information from nova and update vm_info if it is passed
     :param vm_info:
