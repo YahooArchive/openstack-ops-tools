@@ -35,6 +35,7 @@ import socket
 import multiprocessing
 import sshmap
 import hostlists
+import novaclient.v1_1
 
 
 def ping(ipaddress, timeout=30):
@@ -87,6 +88,11 @@ def get_single_instance_hypervisor(values):
     ping_result = 'Unknown'
     logging.debug(
         'Getting instance attributes for openstack instance %s', openstack_id)
+    #nova = novaclient.v1_1.Client(
+    #    os.environ['OS_USERNAME'], os.environ['OS_PASSWORD'],
+    #    os.environ['OS_TENANT_NAME'], os.environ['OS_AUTH_URL']
+    #)
+
     for line2 in os.popen('nova show %s' % openstack_id).readlines():
         sline2 = line2.strip().split('|')
         if len(sline2) > 2:
