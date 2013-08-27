@@ -37,13 +37,14 @@ import sshmap
 import hostlists
 
 
-def ping(ipaddress):
+def ping(ipaddress, timeout=30):
     """
     Ping a host or ip address once and return up or down
     :param ipaddress:
     :return:
     """
-    rc = os.system('ping -c1 %s > /dev/null 2>&1' % ipaddress) >> 8
+    rc = os.system(
+        'ping -c1 -W%d %s > /dev/null 2>&1' % (timeout, ipaddress)) >> 8
     if rc:
         return 'Down'
     return 'Up'
@@ -99,7 +100,7 @@ def get_single_instance_hypervisor(values):
                 instanceid = value
             #print property,'=',value
             if ipaddress:
-                ping_result = ping(ipaddress)
+                ping_result = ping(ipaddress, timeout=2)
     return openstack_id, name, state, ipaddress, instanceid, hypervisor, \
            ping_result
 
