@@ -100,7 +100,8 @@ def get_single_instance_hypervisor(values):
     :param values:
     :values:
     """
-    openstack_id, name, state, ipaddress, hypervisor, instanceid = values
+    openstack_id, name, state, ipaddress, hypervisor, instanceid, \
+    skip_ping = values
     ping_result = 'Unknown'
     user_id = 'Unknown'
     logging.debug(
@@ -119,7 +120,7 @@ def get_single_instance_hypervisor(values):
             if property_name == 'user_id':
                 user_id = value
             #print property,'=',value
-            if ipaddress:
+            if ipaddress and skip_ping is False:
                 ping_result = ping(ipaddress, timeout=1)
     return openstack_id, name, state, ipaddress, instanceid, hypervisor, \
            ping_result, user_id
@@ -162,7 +163,7 @@ def get_hypervisor_instances(hypervisor):
 
 
 # Get the info from nova
-def get_all_nova_instance_info(vm_info=None, processes=10):
+def get_all_nova_instance_info(vm_info=None, processes=10, skip_ping=False):
     """
     Get instance information from nova and update vm_info if it is passed
     :param vm_info:
@@ -181,6 +182,7 @@ def get_all_nova_instance_info(vm_info=None, processes=10):
     # Get the instances running on the hypervisors from nova
     nova_instances = []
     for result in process_pool.imap(get_hypervisor_instances, vm_info.keys()):
+        result = tuple(list(result).append(skip_ping))
         nova_instances += result
 
     # Get more attributes for each instance from nova and add to vm_info
@@ -254,6 +256,10 @@ if __name__ == '__main__':
     # Parse command line arguements
     parser = optparse.OptionParser(usage='get_instance_info hostlists')
     parser.add_option(
+        "--skip_ping", dest="skip_ping", default=False, action="store_true",
+        help="Don't try and ping the instances"
+    )
+    parser.add_option(
         "--json", dest="json", default=False, action="store_true",
         help="Display output in json format")
     parser.add_option(
@@ -307,7 +313,8 @@ if __name__ == '__main__':
 
     # Go get the information
     vm_info = get_hypervisor_instance_info(host_range)
-    vm_info = get_all_nova_instance_info(vm_info, processes=options.jobs)
+    vm_info = get_all_nova_instance_info(vm_info, processes=options.jobs,
+                                         skip_ping=options.skip_ping)
     vm_info = remove_empty_entries(vm_info)
 
     if options.only_in_range:
