@@ -50,6 +50,20 @@ def ping(ipaddress, timeout=30):
     return 'Up'
 
 
+def get_user_id_list():
+    """
+    Get a dict of ids and usernames
+    """
+    user_list = {}
+    for line in os.popen('keystone user-list').readlines():
+        if line.strip().startswith('|'):
+            splitline = line.split('|')
+            id = splitline[1].strip()
+            name = splitline[2].strip()
+            user_list[id] = name
+    return user_list
+
+
 def get_hypervisor_instance_info(host_range=None):
     """
     Connect to a bunch of hypervisors and get instance information from
@@ -184,6 +198,9 @@ def get_all_nova_instance_info(vm_info=None, processes=10):
                 vm_info[hypervisor][instanceid]['openstack_id'] = openstack_id
             if user_id:
                 vm_info[hypervisor][instanceid]['user_id'] = user_id
+                if user_id in keystone_user_ids.keys():
+                    vm_info[hypervisor][instanceid][
+                        'user'] = keystone_user_ids[user_id]
             if ping_result:
                 vm_info[hypervisor][instanceid]['ping'] = ping_result
         except (KeyError, TypeError):
@@ -279,6 +296,9 @@ if __name__ == '__main__':
     # Set the hostlist range to use the openstack plugin to get host list
     if not host_range.strip() and 'OPENSTACK_CLUSTER' in os.environ.keys():
         host_range = 'openstack_hv:%s' % os.environ['OPENSTACK_CLUSTER']
+
+    # Get the userids
+    keystone_user_ids = get_user_id_list()
 
     # Go get the information
     vm_info = get_hypervisor_instance_info(host_range)
