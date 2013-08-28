@@ -55,6 +55,7 @@ def get_user_id_list():
     Get a dict of ids and usernames
     """
     user_list = {}
+    logging.info('Getting user names and ids from keystone')
     for line in os.popen('keystone user-list').readlines():
         if line.strip().startswith('|'):
             splitline = line.split('|')
