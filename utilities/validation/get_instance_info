@@ -327,6 +327,11 @@ if __name__ == '__main__':
         )
         for hypervisor, value in vm_info.items():
             for instance, value2 in value.items():
+                for key in [
+                    'name', 'libvirt_state', 'openstack_id', 'nova_state',
+                    'user', 'user_email', 'ipaddress', 'ping']:
+                    if key not in value2.keys():
+                        value2[key] = ''
                 print(
                     fmt % (
                         hypervisor, value2['name'], instance,
