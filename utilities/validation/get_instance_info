@@ -320,9 +320,9 @@ if __name__ == '__main__':
         fmt='|%-34.34s|%-16.16s|%-18.18s|%-12.12s|%-34.34s|%-12.12s|%-12.12s|%-24.324s|%-16.16s|%-6.6s|'
         print(
             fmt % (
-                'Hypervisor','Instance Name', 'LibvirtId',
-                'LibvirtState', 'OpenstackId', 'OpenstackState',
-                'User', 'Email', 'ipaddress', 'ping'
+                'Hypervisor','Inst Name', 'LV Id',
+                'LV State', 'OS Id', 'OS State',
+                'User', 'Email', 'IP', 'Ping'
             )
         )
         for hypervisor, value in vm_info.items():
