@@ -317,8 +317,9 @@ if __name__ == '__main__':
     if options.json:
         print(json.dumps(vm_info, indent=4, sort_keys=True))
     else:
-        fmt='|%-34.34s|%-16.16s|%-18.18s|%-12.12s|%-34.34s|%-12.12s|%-12.12s|%-24.324s|%-16.16s|%-6.6s|'
-        frame = fmt.replace('|','+') % (list('----------'))
+        fmt = '|%-34.34s|%-16.16s|%-18.18s|%-12.12s|%-34.34s|%-12.12s|' \
+              '%-12.12s|%-24.324s|%-16.16s|%-6.6s|'
+        frame = fmt.replace('|','+') % (list('-'*10))
         print(frame)
         print(
             fmt % (
