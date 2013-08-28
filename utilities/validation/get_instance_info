@@ -182,8 +182,14 @@ def get_all_nova_instance_info(vm_info=None, processes=10, skip_ping=False):
     # Get the instances running on the hypervisors from nova
     nova_instances = []
     for result in process_pool.imap(get_hypervisor_instances, vm_info.keys()):
-        result = result + (skip_ping,)
         nova_instances += result
+
+    # Add our skip_ping parameter
+    new_ni = []
+    for ni in nova_instances:
+        ni = ni + (skip_ping,)
+        new_ni.append(ni)
+    nova_instances = new_ni
 
     # Get more attributes for each instance from nova and add to vm_info
     for openstack_id, name, state, ipaddress, instanceid, hypervisor, \
