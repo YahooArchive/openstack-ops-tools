@@ -61,7 +61,8 @@ def get_user_id_list():
             splitline = line.split('|')
             id = splitline[1].strip()
             name = splitline[2].strip()
-            user_list[id] = name
+            email = splitline[4].strip()
+            user_list[id] = (name, email)
     return user_list
 
 
@@ -201,7 +202,9 @@ def get_all_nova_instance_info(vm_info=None, processes=10):
                 vm_info[hypervisor][instanceid]['user_id'] = user_id
                 if user_id in keystone_user_ids.keys():
                     vm_info[hypervisor][instanceid][
-                        'user'] = keystone_user_ids[user_id]
+                        'user'] = keystone_user_ids[user_id][0]
+                    vm_info[hypervisor][instanceid][
+                    'user_email'] = keystone_user_ids[user_id][1]
             if ping_result:
                 vm_info[hypervisor][instanceid]['ping'] = ping_result
         except (KeyError, TypeError):
