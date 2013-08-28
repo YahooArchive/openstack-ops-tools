@@ -35,7 +35,6 @@ import socket
 import multiprocessing
 import sshmap
 import hostlists
-import novaclient.v1_1
 
 
 def ping(ipaddress, timeout=30):
@@ -86,13 +85,9 @@ def get_single_instance_hypervisor(values):
     """
     openstack_id, name, state, ipaddress, hypervisor, instanceid = values
     ping_result = 'Unknown'
+    user_id = 'Unknown'
     logging.debug(
         'Getting instance attributes for openstack instance %s', openstack_id)
-    #nova = novaclient.v1_1.Client(
-    #    os.environ['OS_USERNAME'], os.environ['OS_PASSWORD'],
-    #    os.environ['OS_TENANT_NAME'], os.environ['OS_AUTH_URL']
-    #)
-
     for line2 in os.popen('nova show %s' % openstack_id).readlines():
         sline2 = line2.strip().split('|')
         if len(sline2) > 2:
@@ -104,11 +99,13 @@ def get_single_instance_hypervisor(values):
                 hypervisor = value
             if property_name in ['OS-EXT-SRV-ATTR:instance_name']:
                 instanceid = value
+            if property_name == 'user_id':
+                user_id = value
             #print property,'=',value
             if ipaddress:
                 ping_result = ping(ipaddress, timeout=2)
     return openstack_id, name, state, ipaddress, instanceid, hypervisor, \
-           ping_result
+           ping_result, user_id
 
 
 def get_hypervisor_instances(hypervisor):
@@ -171,8 +168,8 @@ def get_all_nova_instance_info(vm_info=None, processes=10):
 
     # Get more attributes for each instance from nova and add to vm_info
     for openstack_id, name, state, ipaddress, instanceid, hypervisor, \
-        ping_result in process_pool.imap(
-        get_single_instance_hypervisor, nova_instances):
+        ping_result, user_id in process_pool.imap(
+            get_single_instance_hypervisor, nova_instances):
         #print('%s\t%s\t%s\t%s\t%s' % (name, id, instanceid, state,
         # hypervisor))
         try:
@@ -185,6 +182,8 @@ def get_all_nova_instance_info(vm_info=None, processes=10):
             vm_info[hypervisor][instanceid]['ipaddress'] = ipaddress
             if openstack_id:
                 vm_info[hypervisor][instanceid]['openstack_id'] = openstack_id
+            if user_id:
+                vm_info[hypervisor][instanceid]['user_id'] = user_id
             if ping_result:
                 vm_info[hypervisor][instanceid]['ping'] = ping_result
         except (KeyError, TypeError):
@@ -283,7 +282,7 @@ if __name__ == '__main__':
 
     # Go get the information
     vm_info = get_hypervisor_instance_info(host_range)
-    vm_info = get_all_nova_instance_info(vm_info, processes = options.jobs)
+    vm_info = get_all_nova_instance_info(vm_info, processes=options.jobs)
     vm_info = remove_empty_entries(vm_info)
 
     if options.only_in_range:
