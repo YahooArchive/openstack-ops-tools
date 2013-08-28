@@ -317,8 +317,23 @@ if __name__ == '__main__':
     if options.json:
         print(json.dumps(vm_info, indent=4, sort_keys=True))
     else:
-        print 'Hypervisor InstanceName LibvirtId LibvirtState OpenstackId OpenstackState User Email ipaddress ping'
+        fmt='%32.32s|%s|%s|%s|%s|%s|%s|%s|%s|%s|'
+        print(
+            fmt % (
+                'Hypervisor','InstanceName', 'LibvirtId',
+                'LibvirtState', 'OpenstackId', 'OpenstackState',
+                'User', 'Email', 'ipaddress', 'ping'
+            )
+        )
         for hypervisor, value in vm_info.items():
             for instance, value2 in value.items():
-                print('%s %s %s %s %s %s %s %s %s %s' % (hypervisor, value2['name'], instance, value2['libvirt_state'], value2['openstack_id'], value2['nova_state'], value2['user'], value2['user_email'], value2['ipaddress'], value2['ping']))
+                print(
+                    fmt % (
+                        hypervisor, value2['name'], instance,
+                        value2['libvirt_state'], value2['openstack_id'],
+                        value2['nova_state'], value2['user'],
+                        value2['user_email'], value2['ipaddress'],
+                        value2['ping']
+                    )
+                )
                 #print('%s\t%s\t%s' % (hypervisor, instance, value2))
